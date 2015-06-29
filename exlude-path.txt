@@ -3,5 +3,14 @@
 # Es:
 #   *.mov 
 #   password_list
-
-
+#
+# Sotto un esempio di cartelle che non andrebbero copiate se si vuole fare un backup di una macchina GNU/Linux
+#
+# /dev/*
+# /proc/*
+# /sys/*
+# /tmp/*
+# /run/*
+# /mnt/*
+# /media/*
+# /lost+found
