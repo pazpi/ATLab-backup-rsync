@@ -1,0 +1,7 @@
+# Lista dei file che non verrano copiati
+# è possibile impostare il filtro per estensione
+# Es:
+#   *.mov 
+#   password_list
+
+
