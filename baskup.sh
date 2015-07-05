@@ -92,7 +92,9 @@ echo "Copia in corso di $(LOCAL_FOLDER) dentro la cartella remota $(REMOTE/FOLDE
 # Controlla se la cartella remota è scrivibile
 if ( ! ssh $SSH_NAME [ -d $REMOTE_FOLDER && -w $REMOTE_FOLDER]); then
     echo -e "\e[1;31mError: Cartella remota non esite e/o non scrivibile\e[0m"        
-    backupFailed
+    if [[ $MAIL == 1 ]]; then
+        backupFailed
+    fi
     exit 1
 fi
 
