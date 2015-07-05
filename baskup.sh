@@ -1,5 +1,27 @@
 #!/bin/bash
 
+# Questo script serve per creare una copia dei dati sulla macchina locale dentro una cartella specificata dall'utente dentro un server remoto.
+# Per il backup è necessario installare rsync e avere conoscenza di SSH e in particolare del file ~/.ssh/config
+#
+# La struttura del backup è la seguente:
+# root-backup
+# |
+# |--backup-hostname-mese
+# |   |--01 "backup completo"
+# |   |--02 "hardlink del backup del giorno preedente e copia solo delle differenze"
+# |   |--..
+# |   |--30 
+# |--backup-hostname-mese-precedente
+# |   |--01 "backup completo"
+# |   |--02 "hardlink del backup del giorno preedente e copia solo delle differenze"
+# |   |--..
+# |   |--30 
+# |--cartella-backup-compressi
+# |   |--archivio-hostname-mese.tar.bz2
+# |   |--archivio-hostname-mese-precedente.tar.bz2
+# |   |--..
+# |   |--archivio-hostname-mese-definito-utente.tar.bz2
+
 #------------------------------------------------------------------------------------------
 # Qui ci sono le variabili da modificare per il vostro utilizzo
 
@@ -25,7 +47,7 @@ REMOTE_FOLDER=$(/media/1TORRHDD)
 MAIL_DEST=pasettodavide@gmail.com
 
 # File dove vengono salvate le informazioni che comporranno il corpo della mail
-TESTO_MAIL=mail.txt
+TESTO_MAIL=~/.mail.txt
 
 # Data corrente, es 2015.06
 DATE="date +%Y.%m"
@@ -36,7 +58,7 @@ CURR_DAY="date +%d"
 #Se non si vogliono le mail di notifica si imposti 0
 MAIL=1
 
-# Per quanti GIORNI si vuole tenere il backup come cartella prima che venga compressa come archivio
+# Per quanti GIORNI si vuole tenere il backup come cartella prima che venga compressa come archivio, es 60 giorni = 2 mesi, quindi i due mesi prima rispetto alla cartella corrente del backup
 MAX_FOLDER_OLD=60
 
 # Per quanti GIORNI si vuole tenere l'archivio come cartella (il periodo viene calcolato dalla creazione della cartella, e quindi dall'eta del backup)
@@ -59,8 +81,8 @@ backupFailed() {
 }
 
 echo "Copia in corso di $(LOCAL_FOLDER) dentro la cartella remota $(REMOTE/FOLDER)"
-# Make remote folder
-if ( ! ssh $SSH_NAME [ -d $REMOTE_FOLDER ]); then
+# Controlla se la cartella remota è scrivibile
+if ( ! ssh $SSH_NAME [ -d $REMOTE_FOLDER && -w $REMOTE_FOLDER]); then
     echo -e "\e[1;31mError: Cartella remota non esite e/o non scrivibile\e[0m"        
     backupFailed
     exit 1
@@ -77,9 +99,12 @@ ssh $SSH_NAME (
         if [[ ! -d $BACKUP_FOLDER ]]; then
             mkdir $BACKUP_FOLDER
 
+            # Crea la cartella che conterrà il backup del giorno in cui viene eseguito lo script
             if [[ $(ls -A $BACKUP_FOLDER) ]]; then
                 mkdir $CURR_DAY
+                # Variabile che indica la cartella con il numero inferiore
                 LOW_DAY="ls $BACKUP_FOLDER | sort -V | head -n 1 | sed 's/\///'"
+                # Da definire se si vuole la copia del giorno precedente o del primo giorno del mese
                 cp -al $LOW_DAY $CURR_DAY
             fi
 
@@ -90,10 +115,12 @@ ssh $SSH_NAME (
         if [[ ! -d $COMPRESS_FOLDER ]]; then
             mkdir $COMPRESS_FOLDER
         fi
-        cd $REMOTE_FOLDER
+        # Cerca e rimuove gli archivi più vecchi della data stabilita $MAX_ARCHIVE_OLD
         find . archive_* -type f -mtime +$MAX_ARCHIVE_OLD -exec rm {} \;
+        # Cerca e crea un'archivio con la cartella più vecchia specificata da $MAX_FOLDER_OLD
+        find . backup_* -type d -mtime +$MAX_FOLDER_OLD -exec tar jcf archive_%HN_'date +%Y.%m.%d'.tar.bz2 {} \;
+        # Cerca e sposta gli archivi presenti nella cartella di backup dentro la cartella dei vecchi backup archiviati
         find . archive_* -type f -exec mv {} $COMPRESS_FOLDER \;
-
         
         # tar jcf archive_$HN_'date +%Y.%m.%d'.tar.bz2 backup*
     fi
