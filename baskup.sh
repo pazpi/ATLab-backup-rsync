@@ -98,40 +98,39 @@ fi
 
 # Entrare dentro ssh e creare le cartelle remote
 ssh $SSH_NAME (
-    
-    # Se la cartella esiste e si puo scrivere allora entra
-    if [[ -d $REMOTE_FOLDER && -w $REMOTE_FOLDER ]]; then
-        cd $REMOTE_FOLDER
-        
-        # Se la cartella del backup non esiste, la crea 
-        if [[ ! -d $BACKUP_FOLDER ]]; then
-            mkdir $BACKUP_FOLDER
 
-            # Crea la cartella che conterrà il backup del giorno in cui viene eseguito lo script
-            if [[ $(ls -A $BACKUP_FOLDER) ]]; then
-                mkdir $CURR_DAY
-                # Variabile che indica la cartella con il numero inferiore
-                LOW_DAY="ls $BACKUP_FOLDER | sort -V | head -n 1 | sed 's/\///'"
-                # Da definire se si vuole la copia del giorno precedente o del primo giorno del mese
-                cp -al $LOW_DAY $CURR_DAY
-            fi
+# Se la cartella esiste e si puo scrivere allora entra
+if [[ -d $REMOTE_FOLDER && -w $REMOTE_FOLDER ]]; then
+    cd $REMOTE_FOLDER
 
-            HIGH_DAY="ls $BACKUP_FOLDER | sort -V | tail -n 1 | sed 's/\///'"
-            # TOMORROW_DAY="date -d 'tomorrow' +%d"
+    # Se la cartella del backup non esiste, la crea 
+    if [[ ! -d $BACKUP_FOLDER ]]; then
+        mkdir $BACKUP_FOLDER
+
+        # Crea la cartella che conterrà il backup del giorno in cui viene eseguito lo script
+        if [[ $(ls -A $BACKUP_FOLDER) ]]; then
+            mkdir $CURR_DAY
+            # Variabile che indica la cartella con il numero inferiore
+            LOW_DAY="ls $BACKUP_FOLDER | sort -V | head -n 1 | sed 's/\///'"
+            # Da definire se si vuole la copia del giorno precedente o del primo giorno del mese
+            cp -al $LOW_DAY $CURR_DAY
         fi
 
-        if [[ ! -d $COMPRESS_FOLDER ]]; then
-            mkdir $COMPRESS_FOLDER
-        
+        HIGH_DAY="ls $BACKUP_FOLDER | sort -V | tail -n 1 | sed 's/\///'"
+        # TOMORROW_DAY="date -d 'tomorrow' +%d"
+    fi
+
+    if [[ ! -d $COMPRESS_FOLDER ]]; then
+        mkdir $COMPRESS_FOLDER
+
         # Cerca e rimuove gli archivi più vecchi della data stabilita $MAX_ARCHIVE_O
         find . -name archive_* -type f -mtime +$MAX_ARCHIVE_OLD -exec rm {} 
         # Cerca e crea un'archivio con la cartella più vecchia specificata da $MAX_FOLDER
         tar jcf $(find . -name backup_* -type d -mtime +$MAX_FOLDER_OLD | sed 's/backup/archive/' | sed 's/\.\///').tar.bz2 $(find . -name backup_* -type d -mtime +$MAX_FOLDER_OLD)
         # Cerca e sposta gli archivi presenti nella cartella di backup dentro la cartella dei vecchi backup archiviati
         find . -name archive_* -type f -exec mv {} $COMPRESS_FOLDER \;
-        
-        # tar jcf archive_$HN_'date +%Y.%m.%d'.tar.bz2 backup*
     fi
+fi
 )
 
 rsync -avx --timeout=30 --exlude-from=$EXCLUDE_FILTER $(LOCAL_FOLDER) -e ssh $SSH_NAME:$REMOTE_FOLDER/$BACKUP_FOLDER/$CURR_DAY
@@ -144,11 +143,11 @@ ssh $SSH_NAME "cd $REMOTE_FOLDER && find archive_* -type f -mtime +$MAX_ARCHIVE_
 
 if [[ $MAIL==1 ]]; then
     ssh $SSH_NAME (
-        echo "Backup completato!" > $TESTO_MAIL
-        echo -n Spazio totale occupato: && echo -n -e ' \t'
-        du -sh $REMOTE_FOLDER/$BACKUP_FOLDER | tail -n 1 >> $TESTO_MAIL
-        mail -s "backup-completato" $MAIL $TESTO_MAIL
-        rm -f $TESTO_MAIL
-        )
+    echo "Backup completato!" > $TESTO_MAIL
+    echo -n Spazio totale occupato: && echo -n -e ' \t'
+    du -sh $REMOTE_FOLDER/$BACKUP_FOLDER | tail -n 1 >> $TESTO_MAIL
+    mail -s "backup-completato" $MAIL $TESTO_MAIL
+    rm -f $TESTO_MAIL
+    )
 fi
 
