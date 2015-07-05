@@ -70,6 +70,14 @@ MAX_ARCHIVE_OLD=180
 BACKUP_FOLDER=backup_$HN_$DATE
 COMPRESS_FOLDER=compressed-backup
 
+if [[ $MAX_FOLDER_OLD % 30 != 0 ]]; then
+    MAX_FOLDER_OLD_MONTH = $(expr MAX_FOLDER_OLD / 30 + 1)
+else
+    MAX_FOLDER_OLD_MONTH = $(expr MAX_FOLDER_OLD / 30)
+fi
+
+# "date +%m --date="$(date +%Y-%m-15) -"
+
 #funzione per inviare una mail in caso di backup fallito
 backupFailed() {
     ssh $SSH_NAME (
@@ -114,13 +122,13 @@ ssh $SSH_NAME (
 
         if [[ ! -d $COMPRESS_FOLDER ]]; then
             mkdir $COMPRESS_FOLDER
-        fi
-        # Cerca e rimuove gli archivi più vecchi della data stabilita $MAX_ARCHIVE_OLD
-        find . archive_* -type f -mtime +$MAX_ARCHIVE_OLD -exec rm {} \;
-        # Cerca e crea un'archivio con la cartella più vecchia specificata da $MAX_FOLDER_OLD
-        find . backup_* -type d -mtime +$MAX_FOLDER_OLD -exec tar jcf archive_%HN_'date +%Y.%m.%d'.tar.bz2 {} \;
+        
+        # Cerca e rimuove gli archivi più vecchi della data stabilita $MAX_ARCHIVE_O
+        find . -name archive_* -type f -mtime +$MAX_ARCHIVE_OLD -exec rm {} 
+        # Cerca e crea un'archivio con la cartella più vecchia specificata da $MAX_FOLDER
+        tar jcf $(find . -name backup_* -type d -mtime +$MAX_FOLDER_OLD | sed 's/backup/archive/' | sed 's/\.\///').tar.bz2 $(find . -name backup_* -type d -mtime +$MAX_FOLDER_OLD)
         # Cerca e sposta gli archivi presenti nella cartella di backup dentro la cartella dei vecchi backup archiviati
-        find . archive_* -type f -exec mv {} $COMPRESS_FOLDER \;
+        find . -name archive_* -type f -exec mv {} $COMPRESS_FOLDER \;
         
         # tar jcf archive_$HN_'date +%Y.%m.%d'.tar.bz2 backup*
     fi
